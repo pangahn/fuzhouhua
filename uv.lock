@@ -1,0 +1,69 @@
+version = 1
+revision = 1
+requires-python = ">=3.10"
+
+[[package]]
+name = "colorama"
+version = "0.4.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335 },
+]
+
+[[package]]
+name = "fuzhouhua"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "paddle2onnx" },
+    { name = "pytubefix" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "paddle2onnx", specifier = "==1.3.1" },
+    { name = "pytubefix", specifier = ">=8.12.2" },
+    { name = "tqdm", specifier = ">=4.67.1" },
+]
+
+[[package]]
+name = "paddle2onnx"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/bc/cbecdcae3a2230115804663d9cb820e054f1aa85b09b1fdfae275d1c7be3/paddle2onnx-1.3.1-cp310-cp310-macosx_12_0_universal2.whl", hash = "sha256:0756da3c211825e0e5f8a1623925aa4db40a85d173df16a83491d37ac019f6bb", size = 2736783 },
+    { url = "https://files.pythonhosted.org/packages/c0/6d/770e0580e21f4f77961483e3cd2c73ded5030cc9c851ff40c082c0ac2eb0/paddle2onnx-1.3.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4d27d2b673d999a13678f6d79aa600c116823a33761261daa9eaa8566ad9be63", size = 3410598 },
+    { url = "https://files.pythonhosted.org/packages/46/8e/16be8f3061868adedbcc28185c3dd5b4f72463ddddefe0e92d08b15c897e/paddle2onnx-1.3.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:26cbefbdd8b041065db01ba93e4a14e0b089c7cb5307df7bc4fb9f8e932ca57a", size = 3619141 },
+    { url = "https://files.pythonhosted.org/packages/28/e9/3a21ab92c59f859da05f31a4d7fbf41c15399ce8fd43ac3c776499640ec8/paddle2onnx-1.3.1-cp310-cp310-win_amd64.whl", hash = "sha256:e84f67078acd5f5742c37ac69527996daf6bee721b71280768e2dbda909570d4", size = 1817152 },
+    { url = "https://files.pythonhosted.org/packages/e5/1f/4246ce4ddcd0b07217ccc165cd5a685f9eae2a36bb8195151334179888ff/paddle2onnx-1.3.1-cp311-cp311-macosx_12_0_universal2.whl", hash = "sha256:e7b60c963de241fd493fd57dbfd64f6cde633c5c043fd3bc0d8733d36a4410b0", size = 2737829 },
+    { url = "https://files.pythonhosted.org/packages/b8/eb/370c67f3b197bb294d87579839c758b436d83c2a12b5d2bcdcd892d5541d/paddle2onnx-1.3.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3d222c3862ec010687c0e1179a547233f3caa36bde93dec189453aa184a319d6", size = 3412100 },
+    { url = "https://files.pythonhosted.org/packages/3c/74/8a39614f7ce9a5a0326c3646fc90c0cfc1020ed289db3b585107086bd0f8/paddle2onnx-1.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:438abb3117a045386fbeee4f3bfdcb4dcf4ff50975490be899def17d9a697e87", size = 3619741 },
+    { url = "https://files.pythonhosted.org/packages/bb/b7/5c65ee9161fd0f818dd832e3d9860c0be3585a8bcb2bc006f894afe29cc7/paddle2onnx-1.3.1-cp311-cp311-win_amd64.whl", hash = "sha256:f3ae071d64f1d90aebf25a540d7609517f93fc6f0ad6c5f4a1bdc2bc5c26fc6d", size = 1817638 },
+    { url = "https://files.pythonhosted.org/packages/14/44/b984fd6ab4b7adfc7ced1c30aa6b84f297235ae5ea0024739fbd01dcbfa2/paddle2onnx-1.3.1-cp312-cp312-macosx_12_0_universal2.whl", hash = "sha256:a79dd16d0fe29ac9a434b925660f65dd5893adde9db3527ce41850e72c428ea3", size = 2737752 },
+    { url = "https://files.pythonhosted.org/packages/b3/3d/9407cc4752c6c370490fd0281610c5954e97666323d4678019bb48c8b235/paddle2onnx-1.3.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7f1b2eb9ba64340d6c1a305fb79ae29f608992e411b9bdeff589994d4c31a44f", size = 3410932 },
+    { url = "https://files.pythonhosted.org/packages/0d/87/b537277a84c696bfc29c9c296db4fcfd0c0e8055a30ba2b1aea55cb3b8b2/paddle2onnx-1.3.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ddae52e3672145f262a1dd64ed109ce5f6952b21df0f9e35018d07db1ff71b2a", size = 3619606 },
+    { url = "https://files.pythonhosted.org/packages/14/9e/cc2ddb81cce717daa928b5f7ba346c68d8a5e715a38df4a346d3161b55ea/paddle2onnx-1.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:0b125615c4a9a27020f398835392d254b9875fae1fb7dac94f9f3872e03a69ca", size = 1818159 },
+]
+
+[[package]]
+name = "pytubefix"
+version = "8.12.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/78/052f22b47e8acff8543b2a5b113d4c034c8c1c232ed77a5d9e32c33399f4/pytubefix-8.12.2.tar.gz", hash = "sha256:65d70a27806b1c129340c770243c3bbebc6b8a74f4cc30aa7803a192fdef94e1", size = 733063 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/d5/5a39f5515767d7615da06940b492c821fb7269c897702fa9de1190ef0ca3/pytubefix-8.12.2-py3-none-any.whl", hash = "sha256:061970d55aa1597a69f4e0bd3117de0224a1a3a3da37dc81e9f4ff66ba6875ab", size = 730676 },
+]
+
+[[package]]
+name = "tqdm"
+version = "4.67.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2", size = 78540 },
+]

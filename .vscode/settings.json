@@ -1,0 +1,41 @@
+{
+  "workbench.activityBar.orientation": "vertical",
+  "editor.fontSize": 14,
+  "debug.console.fontSize": 14,
+  "terminal.integrated.fontSize": 14,
+  "python.languageServer": "None",
+  "autoDocstring.docstringFormat": "numpy",
+  "workbench.tree.indent": 18,
+  "workbench.tree.renderIndentGuides": "always",
+  "workbench.colorCustomizations": {
+    "tree.indentGuidesStroke": "#05ef3c"
+  },
+  "notebook.output.scrolling": true,
+  "notebook.formatOnSave.enabled": true,
+  "notebook.formatOnCellExecution": true,
+  "editor.defaultFormatter": "charliermarsh.ruff",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./tests",
+    "-p",
+    "test_*.py"
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true,
+  "python.analysis.extraPaths": [
+    "./src"
+  ],
+  "Lingma.methodQuickOperation": false,
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  }
+}
