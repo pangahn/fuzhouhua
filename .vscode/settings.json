@@ -3,7 +3,7 @@
   "editor.fontSize": 14,
   "debug.console.fontSize": 14,
   "terminal.integrated.fontSize": 14,
-  "python.languageServer": "None",
+  "python.languageServer": "Default",
   "autoDocstring.docstringFormat": "numpy",
   "workbench.tree.indent": 18,
   "workbench.tree.renderIndentGuides": "always",
