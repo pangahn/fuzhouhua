@@ -1,0 +1,15 @@
+{
+    "use_onnx": true,
+    "paddleocr": {
+        "onnxmodel": {
+            "det_model_dir": "./models/ocr/onnxmodel/ch_PP-OCRv4_det_server_infer.onnx",
+            "rec_model_dir": "./models/ocr/onnxmodel/ch_PP-OCRv4_rec_server_infer.onnx",
+            "cls_model_dir": "./models/ocr/onnxmodel/ch_ppocr_mobile_v2_cls.onnx"
+        },
+        "pdmodel": {
+            "det_model_dir": "./models/ocr/pdmodel/ch_PP-OCRv4_det_server_infer",
+            "rec_model_dir": "./models/ocr/pdmodel/ch_PP-OCRv4_rec_server_infer",
+            "cls_model_dir": "./models/ocr/pdmodel/ch_ppocr_mobile_v2.0_cls_infer"
+        }
+    }
+}
