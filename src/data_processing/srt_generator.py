@@ -136,18 +136,22 @@ class SRTGenerator:
                 last.end = last.start + min_dur
 
 
-if __name__ == "__main__":
+def main():
     srt_folder = Path("data/raw/subtitles/srt")
-    raw_subtitle_dir = Path("data/raw/subtitles/json")
+    srt_folder.mkdir(parents=True, exist_ok=True)
 
     generator = SRTGenerator(
         confidence_threshold=0.7,
         similarity_threshold=0.8,
-        max_gap=3,
+        max_gap=10,
         min_duration=0.8,
     )
 
-    for subtitle_file in tqdm(Path(raw_subtitle_dir).rglob("*.json"), desc="Processing subtitles"):
-        output_file = Path(srt_folder) / (subtitle_file.stem + ".srt")
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+    raw_subtitle_dir = Path("data/raw/subtitles/json")
+    for subtitle_file in tqdm(raw_subtitle_dir.rglob("*.json"), desc="Processing subtitles"):
+        output_file = srt_folder / (subtitle_file.stem + ".srt")
         generator.aggregate_subtitles(subtitle_file, output_file)
+
+
+if __name__ == "__main__":
+    main()
