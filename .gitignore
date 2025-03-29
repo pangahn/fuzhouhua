@@ -12,3 +12,7 @@ wheels/
 
 # Data
 *.mp4
+*.onnx
+*.pdiparams
+*.pdmodel
+*.info
