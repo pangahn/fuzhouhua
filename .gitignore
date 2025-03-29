@@ -12,7 +12,12 @@ wheels/
 
 # Data
 *.mp4
+*.wav
 *.onnx
 *.pdiparams
 *.pdmodel
 *.info
+metadata.jsonl
+
+# logs
+.gradio/
