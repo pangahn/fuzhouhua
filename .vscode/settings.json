@@ -37,5 +37,6 @@
   "Lingma.methodQuickOperation": false,
   "[json]": {
     "editor.defaultFormatter": "vscode.json-language-features"
-  }
+  },
+  "basedpyright.disableLanguageServices": true
 }

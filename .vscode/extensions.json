@@ -2,10 +2,7 @@
     "recommendations": [
         "shardulm94.trailing-spaces",
         "ms-python.python",
-        "alibaba-cloud.tongyi-lingma",
         "ms-python.debugpy",
-        "charliermarsh.ruff",
-        "ms-vscode.live-server",
-        "rooveterinaryinc.roo-cline"
+        "charliermarsh.ruff"
     ]
 }
