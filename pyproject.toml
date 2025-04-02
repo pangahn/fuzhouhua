@@ -5,8 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "accelerate>=1.6.0",
     "datasets>=3.5.0",
+    "evaluate>=0.4.3",
     "gradio>=5.23.1",
+    "jiwer>=3.1.0",
+    "librosa>=0.11.0",
+    "numpy==1.26.4",
     "onnxruntime>=1.21.0",
     "openai>=1.69.0",
     "opencv-python>=4.11.0.86",
@@ -19,5 +24,8 @@ dependencies = [
     "pytubefix>=8.12.2",
     "scikit-image>=0.25.2",
     "srt>=3.5.3",
+    "tensorboardx>=2.6.2.2",
+    "torch==2.2.2",
     "tqdm>=4.67.1",
+    "transformers>=4.50.3",
 ]
