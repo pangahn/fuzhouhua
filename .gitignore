@@ -18,6 +18,8 @@ wheels/
 *.pdmodel
 *.info
 metadata.jsonl
+*.srt
+json/
 
 # logs
 .gradio/

@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 
 class SentenceTransformerSimilarity:
-    def __init__(self, model_name="all-MiniLM-L6-v2", use_onnx=True):
+    def __init__(self, model_name: str, use_onnx: bool = True):
         os.environ["ORT_PROVIDERS"] = "CPUExecutionProvider"
         os.environ["OMP_NUM_THREADS"] = "4"
         os.environ["MKL_NUM_THREADS"] = "4"
@@ -46,6 +46,8 @@ class SRTGenerator:
         frequency_threshold=2,
         end_time_offset=0.1,
         min_duration=0.5,
+        sbert_model_name="all-MiniLM-L6-v2",
+        use_onnx=True,
     ):
         self.confidence_threshold = confidence_threshold
         self.frame_similarity_threshold = frame_similarity_threshold
@@ -55,7 +57,7 @@ class SRTGenerator:
         self.end_time_offset = end_time_offset
         self.min_duration = min_duration
 
-        self.model = SentenceTransformerSimilarity(model_name="all-MiniLM-L6-v2", use_onnx=True)
+        self.model = SentenceTransformerSimilarity(sbert_model_name, use_onnx)
 
     @staticmethod
     def _substring_similarity(text1, text2):
@@ -201,6 +203,8 @@ def main():
         text_similarity_threshold=0.8,
         max_gap=10,
         min_duration=0.3,
+        sbert_model_name="distiluse-base-multilingual-cased-v2",
+        use_onnx=True,
     )
 
     raw_subtitle_dir = Path("data/raw/subtitles/json")
