@@ -312,8 +312,8 @@ def main():
 
         for video_path in videos_dir.rglob("*.mp4"):
             output_path = extractor.get_raw_subtitle_filepath(output_subtitle_dir, video_path)
-            # if output_path.exists():
-            #     continue
+            if output_path.exists():
+                continue
 
             try:
                 result = extractor.extract(video_path, output_subtitle_dir)

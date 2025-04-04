@@ -1,36 +1,73 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 from typing import List, Tuple
 
 import srt
-from Levenshtein import ratio
+from sentence_transformers import SentenceTransformer
 from srt import Subtitle
 from tqdm import tqdm
+
+
+class SentenceTransformerSimilarity:
+    def __init__(self, model_name="all-MiniLM-L6-v2", use_onnx=True):
+        os.environ["ORT_PROVIDERS"] = "CPUExecutionProvider"
+        os.environ["OMP_NUM_THREADS"] = "4"
+        os.environ["MKL_NUM_THREADS"] = "4"
+
+        if use_onnx:
+            self.model = SentenceTransformer(
+                model_name,
+                backend="onnx",
+                model_kwargs={
+                    "file_name": "onnx/model.onnx",
+                    "provider": "CPUExecutionProvider",
+                },
+            )
+        else:
+            self.model = SentenceTransformer(model_name)
+
+    def calculate_similarity(self, text1, text2):
+        embeddings = self.model.encode([text1, text2])
+        similarity = self.model.similarity(embeddings[0], embeddings[1])
+        return float(similarity[0][0])
 
 
 class SRTGenerator:
     def __init__(
         self,
         confidence_threshold=0.7,
-        similarity_threshold=0.8,
+        frame_similarity_threshold=0.8,
+        text_similarity_threshold=0.8,
         max_gap=1.5,
         frequency_threshold=2,
         end_time_offset=0.1,
         min_duration=0.5,
     ):
         self.confidence_threshold = confidence_threshold
-        self.similarity_threshold = similarity_threshold
+        self.frame_similarity_threshold = frame_similarity_threshold
+        self.text_similarity_threshold = text_similarity_threshold
         self.max_gap = max_gap
         self.frequency_threshold = frequency_threshold
         self.end_time_offset = end_time_offset
         self.min_duration = min_duration
 
+        self.model = SentenceTransformerSimilarity(model_name="all-MiniLM-L6-v2", use_onnx=True)
+
     @staticmethod
-    def text_similarity(text1, text2):
-        return ratio(text1, text2)
+    def _substring_similarity(text1, text2):
+        if len(text1) >= 3 and text1 in text2:
+            return 0.8
+
+    def calculate_similarity(self, text1, text2):
+        bert_similarity = self.model.calculate_similarity(text1, text2)
+
+        if self._substring_similarity(text1[:3], text2) or self._substring_similarity(text2[:3], text1):
+            return max(0.8, bert_similarity) if bert_similarity > 0.3 else bert_similarity
+        return bert_similarity
 
     @staticmethod
     def create_subtitle(index, start_time, end_time, content):
@@ -38,7 +75,7 @@ class SRTGenerator:
             end_time = start_time + timedelta(milliseconds=100)
         return Subtitle(index=index, start=start_time, end=end_time, content=content)
 
-    def aggregate_subtitles(self, input_file, output_file):
+    def aggregate(self, input_file, output_file):
         subtitles = []
         current_group = []
 
@@ -47,9 +84,9 @@ class SRTGenerator:
 
         for line in lines:
             if len(line) == 4:
-                seconds, text, confidence, _ = line
+                seconds, text, confidence, frame_similarity = line
             elif len(line) == 5:
-                _, seconds, text, confidence, _ = line
+                _, seconds, text, confidence, frame_similarity = line
             else:
                 continue
 
@@ -61,10 +98,15 @@ class SRTGenerator:
             if current_group:
                 last_time, last_text, _ = current_group[-1]
                 time_diff = (time - last_time).total_seconds()
-                similarity = self.text_similarity(text, last_text)
+                text_similarity = self.calculate_similarity(text, last_text)
+                frame_similarity = float(frame_similarity)
 
                 # 添加到当前字幕组
-                if similarity >= self.similarity_threshold and time_diff <= self.max_gap:
+                is_group_text = True if text_similarity >= self.text_similarity_threshold else False
+                is_group_frame = True if frame_similarity >= self.frame_similarity_threshold else False
+                is_group_timeline = True if time_diff <= self.max_gap else False
+
+                if (is_group_text or is_group_frame) and is_group_timeline:
                     current_group.append((time, text, float(confidence)))
                     continue
 
@@ -83,6 +125,7 @@ class SRTGenerator:
         self._merge_adjacent_subtitles(subtitles)
         self._adjust_subtitle_times(subtitles)
 
+        # 保存字幕文件
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(srt.compose(subtitles))
 
@@ -104,7 +147,19 @@ class SRTGenerator:
 
         start_time = group[0][0]
         end_time = group[-1][0]
-        subtitles.append(self.create_subtitle(len(subtitles) + 1, start_time, end_time, selected))
+        subtitles.append(
+            self.create_subtitle(
+                len(subtitles) + 1,
+                start_time,
+                end_time,
+                self.post_text_process(selected),
+            )
+        )
+
+    @staticmethod
+    def post_text_process(srt_content):
+        srt_content = srt_content.replace("但语", "俚语")
+        return srt_content
 
     def _merge_adjacent_subtitles(self, subtitles):
         merged = []
@@ -142,15 +197,17 @@ def main():
 
     generator = SRTGenerator(
         confidence_threshold=0.7,
-        similarity_threshold=0.8,
+        frame_similarity_threshold=0.75,
+        text_similarity_threshold=0.8,
         max_gap=10,
-        min_duration=0.8,
+        min_duration=0.3,
     )
 
     raw_subtitle_dir = Path("data/raw/subtitles/json")
-    for subtitle_file in tqdm(raw_subtitle_dir.rglob("*.json"), desc="Processing subtitles"):
+    raw_subtitle_list = list(raw_subtitle_dir.rglob("*.json"))
+    for subtitle_file in tqdm(raw_subtitle_list, desc="Processing subtitles", unit="file"):
         output_file = srt_folder / (subtitle_file.stem + ".srt")
-        generator.aggregate_subtitles(subtitle_file, output_file)
+        generator.aggregate(subtitle_file, output_file)
 
 
 if __name__ == "__main__":
