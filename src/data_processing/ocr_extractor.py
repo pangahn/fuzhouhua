@@ -1,38 +1,102 @@
 # -*- coding: utf-8 -*-
+import base64
+import io
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
+from dotenv import load_dotenv
+from openai import OpenAI
 from paddleocr import PaddleOCR, draw_ocr
 from PIL import Image
 from skimage.metrics import structural_similarity
 from tqdm import tqdm
+
+load_dotenv()
+
+BASE_URL = os.environ.get("OCR_OPENAI_BASE_URL")
+API_KEY = os.environ.get("OCR_OPENAI_API_KEY")
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class PPOCR:
-    def __init__(self, ocr_config_path: str):
-        self._load_config(ocr_config_path)
+    def __init__(self, ocr_config: dict):
+        self.ocr_config = ocr_config
         self._init_ocr_engine()
         logging.getLogger("ppocr").setLevel(logging.ERROR)
 
-    def _load_config(self, config_path: str) -> dict:
-        with open(config_path, "r", encoding="utf-8") as f:
-            self.ocr_config = json.load(f)
-
     def _init_ocr_engine(self):
         use_onnx = self.ocr_config.get("use_onnx", False)
-        model_config = self.ocr_config["paddleocr"]["onnxmodel" if use_onnx else "pdmodel"]
+        model_config = self.ocr_config["onnxmodel" if use_onnx else "pdmodel"]
         self.pipeline = PaddleOCR(lang="ch", show_log=False, use_angle_cls=False, use_onnx=use_onnx, **model_config)
 
     def ocr(self, img: np.ndarray):
         result = self.pipeline.ocr(img)[0]
         return result
+
+
+class VLMOCR:
+    def __init__(self, vlm_config: dict):
+        self.vlm_config = vlm_config
+        self._init_client()
+
+    def _init_client(self):
+        self.client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
+        self.model = self.vlm_config["model"]
+        self.prompt = self.vlm_config["prompt"]
+
+    def _encode_image(self, image_array: np.ndarray) -> str:
+        img = Image.fromarray(image_array)
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    def ocr(self, img: np.ndarray):
+        try:
+            image_b64 = self._encode_image(img)
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": self.prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
+                        ],
+                    }
+                ],
+            )
+
+            text = completion.choices[0].message.content.strip()
+
+            # Format result to match PaddleOCR output format
+            # For VLM, we don't have box coordinates, so use the center of the image
+            height, width = img.shape[:2]
+            center_x, center_y = width // 2, height // 2
+            half_width, half_height = width // 4, height // 4
+
+            # Create a simple bounding box around the center of the image
+            box = [
+                [center_x - half_width, center_y - half_height],
+                [center_x + half_width, center_y - half_height],
+                [center_x + half_width, center_y + half_height],
+                [center_x - half_width, center_y + half_height],
+            ]
+
+            # Return in the same format as PaddleOCR for consistency
+            confidence = 0.95  # Assuming high confidence, adjust as needed
+            result = [[box, [text, confidence]]]
+            return result
+
+        except Exception as e:
+            logger.error(f"VLM OCR error: {e}")
+            return []
 
 
 def get_raw_subtitle_filepath(subtitle_dir: Path, video_path: Path) -> Path:
@@ -42,21 +106,34 @@ def get_raw_subtitle_filepath(subtitle_dir: Path, video_path: Path) -> Path:
 class SubtitleExtractor:
     def __init__(
         self,
-        ocr_config_path: str = "configs/ocr_config.json",
-        subtitle_config_path: str = "configs/subtitle_xy.json",
+        ocr_config_path: str,
+        subtitle_config_path: str,
         font_path: str = "models/ocr/fonts/simfang.ttf",
         debug: bool = False,
         debug_dir: Optional[str] = "test/debug",
     ):
-        self.subsampling = 5
-        self.ssim_threshold = 0.9
+        with open(ocr_config_path, "r", encoding="utf-8") as f:
+            self.ocr_config = json.load(f)
 
-        self.font_path = font_path
         self.subtitle_config_path = subtitle_config_path
-        self.ocr_engine = PPOCR(ocr_config_path)
-
+        self.font_path = font_path
         self.debug = debug
         self.debug_dir = Path(debug_dir)
+
+        self.ocr_engine_type = self.ocr_config["engine"]
+        if self.ocr_engine_type == "paddleocr":
+            engine_config = self.ocr_config.get("paddleocr")
+            self.paddle_ocr = PPOCR(engine_config)
+
+        elif self.ocr_engine_type == "vlm":
+            engine_config = self.ocr_config.get("vlm")
+            self.vlm_ocr = VLMOCR(engine_config)
+
+        else:
+            raise ValueError(f"Invalid OCR engine type: {self.ocr_engine_type}")
+
+        self.subsampling = 5
+        self.ssim_threshold = 0.9
 
     def _get_subtitle_region(self, video_path: str) -> Tuple[int, int, int, int]:
         with open(self.subtitle_config_path, "r", encoding="utf-8") as f:
@@ -64,7 +141,7 @@ class SubtitleExtractor:
 
         series = Path(video_path).parent.name
         if series not in self.subtitle_config:
-            raise ValueError(f"未找到系列配置: {series}")
+            raise ValueError(f"Series configuration not found: {series}")
 
         region = self.subtitle_config[series]
         return (region["x"], region["y"], region["w"], region["h"])
@@ -89,7 +166,23 @@ class SubtitleExtractor:
         return similarity <= self.ssim_threshold, similarity
 
     def _ocr_process(self, image: np.ndarray) -> Tuple[List, str, float]:
-        result = self.ocr_engine.ocr(image)
+        if self.ocr_engine_type == "paddleocr":
+            return self._paddle_ocr_process(image)
+        elif self.ocr_engine_type == "vlm":
+            return self._vlm_ocr_process(image)
+        else:
+            raise ValueError(f"Unknown OCR engine type: {self.ocr_engine_type}")
+
+    def _paddle_ocr_process(self, image: np.ndarray) -> Tuple[List, str, float]:
+        result = self.paddle_ocr.ocr(image)
+        if not result:
+            return [], "", 0.0
+
+        texts, confidences = zip(*[(line[1][0].strip(), line[1][1]) for line in result])
+        return result, "".join(texts), sum(confidences) / len(confidences)
+
+    def _vlm_ocr_process(self, image: np.ndarray) -> Tuple[List, str, float]:
+        result = self.vlm_ocr.ocr(image)
         if not result:
             return [], "", 0.0
 
@@ -117,7 +210,6 @@ class SubtitleExtractor:
         prev_text: str,
         debug_dir: Optional[Path],
     ) -> Tuple[Optional[np.ndarray], str, Optional[Dict]]:
-        """处理单个视频帧并返回识别结果"""
         cropped, gray_image = self._preprocess_frame(frame, region)
         changed, similarity = self.image_has_changed(gray_image, prev_image)
         if not changed:
@@ -147,16 +239,16 @@ class SubtitleExtractor:
 
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
-            raise RuntimeError(f"无法打开视频文件: {video_path}")
+            raise RuntimeError(f"Unable to open video file: {video_path}")
 
         try:
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = cap.get(cv2.CAP_PROP_FPS)
-            logger.info("视频信息: 总帧数=%d, FPS=%.2f", total_frames, fps)
+            logger.info("Total frames=%d, FPS=%.2f", total_frames, fps)
 
             subtitles = []
             prev_image, prev_text = None, ""
-            progress_bar = tqdm(total=total_frames, desc="处理进度", unit="frame")
+            progress_bar = tqdm(total=total_frames, unit="frame")
 
             current_frame_pos = 0
             while current_frame_pos < total_frames:
@@ -177,6 +269,9 @@ class SubtitleExtractor:
                 if subtitle:
                     subtitles.append(subtitle)
 
+                    timeline = self.format_timestamp(subtitle[1])
+                    progress_bar.set_description(f"{timeline} {subtitle[2]}")
+
                 progress_bar.update(subsampling)
                 current_frame_pos += subsampling
 
@@ -184,30 +279,48 @@ class SubtitleExtractor:
         finally:
             cap.release()
 
-        output_path = get_raw_subtitle_filepath(output_dir, video_path)
+        output_path = self.get_raw_subtitle_filepath(output_dir, video_path)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(subtitles, f, ensure_ascii=False, indent=2)
 
-        logger.info("处理完成: %s", video_path.name)
+        logger.info("Processing completed: %s", video_path.name)
         return output_path
 
+    @staticmethod
+    def get_raw_subtitle_filepath(subtitle_dir: Path, video_path: Path) -> Path:
+        return subtitle_dir / f"{video_path.stem}.json"
 
-if __name__ == "__main__":
-    extractor = SubtitleExtractor(debug=False)
-    subtitle_dir = Path("data/raw/subtitles/json")
-    playlist_dir = Path("data/raw/videos")
+    @staticmethod
+    def format_timestamp(seconds: float) -> str:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds = seconds % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}".replace(".", ",")
 
-    for videos_dir in Path(playlist_dir).iterdir():
+
+def main():
+    ocr_config_path = Path("configs/ocr_config.json")
+    subtitle_config_path = Path("configs/subtitle_xy.json")
+    extractor = SubtitleExtractor(ocr_config_path, subtitle_config_path)
+
+    output_subtitle_dir = Path("data/raw/subtitles/json")
+    video_playlist_dir = Path("data/raw/videos")
+
+    for videos_dir in video_playlist_dir.iterdir():
         if not videos_dir.is_dir():
             continue
 
         for video_path in videos_dir.rglob("*.mp4"):
-            output_path = get_raw_subtitle_filepath(subtitle_dir, video_path)
-            if output_path.exists():
-                continue
+            output_path = extractor.get_raw_subtitle_filepath(output_subtitle_dir, video_path)
+            # if output_path.exists():
+            #     continue
 
             try:
-                result = extractor.extract(video_path, subtitle_dir)
-                logger.info("字幕文件已保存至: %s", result)
+                result = extractor.extract(video_path, output_subtitle_dir)
+                logger.info("Subtitle file saved to: %s", result)
             except Exception as e:
-                logger.error("处理失败: %s", video_path, exc_info=e)
+                logger.error("Processing failed: %s", video_path, exc_info=e)
+
+
+if __name__ == "__main__":
+    main()

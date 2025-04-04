@@ -1,6 +1,7 @@
 {
-    "use_onnx": true,
+    "engine": "paddleocr",
     "paddleocr": {
+        "use_onnx": true,
         "onnxmodel": {
             "det_model_dir": "./models/ocr/onnxmodel/ch_PP-OCRv4_det_server_infer.onnx",
             "rec_model_dir": "./models/ocr/onnxmodel/ch_PP-OCRv4_rec_server_infer.onnx",
@@ -11,5 +12,9 @@
             "rec_model_dir": "./models/ocr/pdmodel/ch_PP-OCRv4_rec_server_infer",
             "cls_model_dir": "./models/ocr/pdmodel/ch_ppocr_mobile_v2.0_cls_infer"
         }
+    },
+    "vlm": {
+        "model": "qwen/qwen2.5-vl-32b-instruct:free",
+        "prompt": "你是一个字幕转录员，请提取图片中的中文字幕，并确保结果的准确性。只返回文本内容，不要添加任何额外的评论。"
     }
 }
