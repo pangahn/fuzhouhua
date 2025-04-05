@@ -12,7 +12,7 @@ def load_data(jsonl_file):
     return data
 
 
-data_list = load_data("data/dataset/metadata.jsonl")
+data_list = load_data("data/clips/metadata.jsonl")
 total_samples = len(data_list)
 batch_size = 5
 

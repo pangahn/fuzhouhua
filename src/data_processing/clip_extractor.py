@@ -67,10 +67,10 @@ def process_single_video(video_file, srt_dir, audio_dir, output_dir):
 
     # Create clip directory
     video_id = hashlib.md5(audio_path.stem.encode()).hexdigest()[:5]
-    clip_dir = output_dir / "clips" / video_id
+    clip_dir = output_dir / video_id
 
     # Check if already processed
-    if clip_dir.exists():
+    if clip_dir.exists() and (clip_dir / "metadata.jsonl").exists():
         wav_files = list(clip_dir.glob("*.wav"))
         if len(wav_files) >= len(subtitles) - 10:
             return []
@@ -109,9 +109,8 @@ def process_single_video(video_file, srt_dir, audio_dir, output_dir):
     return clips_data
 
 
-def merge_metadata(output_dir):
+def merge_metadata(clips_dir):
     all_metadata = []
-    clips_dir = output_dir / "clips"
 
     for clip_dir in tqdm(list(clips_dir.iterdir()), desc="Merging metadata files"):
         metadata_path = clip_dir / "metadata.jsonl"
@@ -119,25 +118,25 @@ def merge_metadata(output_dir):
             with jsonlines.open(metadata_path, "r") as reader:
                 all_metadata.extend(list(reader))
 
-    final_metadata_path = output_dir / "metadata.jsonl"
+    final_metadata_path = clips_dir / "metadata.jsonl"
     with jsonlines.open(final_metadata_path, mode="w") as writer:
         writer.write_all(all_metadata)
 
 
 def main():
-    video_dir = Path("data/raw/videos")
-    srt_dir = Path("data/raw/subtitles/checked")
-    audio_dir = Path("data/raw/audios")
-    output_dir = Path("data/dataset")
+    input_video_dir = Path("data/raw/videos")
+    input_srt_dir = Path("data/raw/subtitles/checked")
+    output_audio_dir = Path("data/raw/audios")
+    output_clip_dir = Path("data/clips")
 
-    audio_dir.mkdir(parents=True, exist_ok=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_audio_dir.mkdir(parents=True, exist_ok=True)
+    output_clip_dir.mkdir(parents=True, exist_ok=True)
 
-    video_files = get_video_files(video_dir)
+    video_files = get_video_files(input_video_dir)
     for video_file in tqdm(video_files, desc="Processing videos", position=0, leave=True):
-        process_single_video(video_file, srt_dir, audio_dir, output_dir)
+        process_single_video(video_file, input_srt_dir, output_audio_dir, output_clip_dir)
 
-    merge_metadata(output_dir)
+    merge_metadata(output_clip_dir)
 
 
 if __name__ == "__main__":

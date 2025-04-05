@@ -2,14 +2,13 @@
 import json
 import logging
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Union
 
 import evaluate
 import torch
-from datasets import Dataset
+from datasets import Dataset, load_dataset, load_from_disk
 from transformers import (
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
@@ -19,13 +18,6 @@ from transformers import (
     WhisperTokenizer,
 )
 from transformers.trainer_utils import get_last_checkpoint
-
-# ruff: noqa: E402
-SCRIPT_DIR = Path(__file__).resolve()
-PROJECR_IR = "/" + "/".join(SCRIPT_DIR.parts[1 : SCRIPT_DIR.parts.index("src")])
-sys.path.insert(0, str(PROJECR_IR + "/src"))
-
-from models.dataset import build_dataset
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -73,7 +65,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         return batch
 
 
-def train(config_path, dataset_dir):
+def train(config_path, dataset_dir: Path):
     config = load_config(config_path)
     output_dir = config["output_dir"]
     os.makedirs(output_dir, exist_ok=True)
@@ -98,14 +90,15 @@ def train(config_path, dataset_dir):
     # ------------------------------------------------------------------ #
     # --------------------------- Dataset ------------------------------ #
     # ------------------------------------------------------------------ #
-    logger.info(f"Preparing dataset: {dataset_dir}")
-    base_dataset = build_dataset(dataset_dir)
+    dataset_config = config["dataset"]
+
+    if dataset_dir.exists():
+        base_dataset = load_from_disk(dataset_dir)
+    else:
+        base_dataset = load_dataset(dataset_config["repo_id"])
+
     dataset = prepare_dataset(base_dataset, processor)
-
-    dataset_config = config.get("dataset", {})
-    test_size = dataset_config.get("test_size", 0.1)
-
-    train_test_split = dataset.train_test_split(test_size=test_size)
+    train_test_split = dataset.train_test_split(test_size=dataset_config["test_size"])
     train_dataset = train_test_split["train"]
     eval_dataset = train_test_split["test"]
 

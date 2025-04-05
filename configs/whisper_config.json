@@ -4,6 +4,9 @@
     "language": "zh",
     "task": "transcribe",
     "dataset": {
+        "repo_id": "i18nJack/fuzhouhua",
+        "push_to_hub": true,
+        "private": false,
         "test_size": 0.1,
         "sampling_rate": 16000
     },

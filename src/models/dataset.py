@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Union
 
@@ -11,6 +12,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+assert "HF_TOKEN" in os.environ, "HF_TOKEN not found in environment variables"
 
 
 def build_dataset(dataset_dir: Union[str, Path]) -> Dataset:
@@ -54,18 +56,26 @@ def build_dataset(dataset_dir: Union[str, Path]) -> Dataset:
 
 
 def main():
-    dataset_dir = "data/dataset"
-    repo_id = "i18nJack/fuzhouhua"
-    private = False
+    input_clip_dir = "data/clips"
+    output_dataset_path = "data/dataset"
+    data_version = "1.0.0"
+    commit_message = "Upload dataset"
 
-    dataset = build_dataset(dataset_dir)
+    dataset = build_dataset(input_clip_dir)
+    dataset.save_to_disk(output_dataset_path)
+    logger.info(f"Dataset saved to {output_dataset_path}")
 
-    try:
-        dataset.push_to_hub(repo_id, private=private)
-        logger.info(f"You can view your dataset at https://huggingface.co/datasets/{repo_id}")
-    except Exception as e:
-        logger.error(f"Upload failed: {e}")
-        raise
+    config_path = "configs/whisper_config.json"
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    push_to_hub = config["dataset"]["push_to_hub"]
+    repo_id = config["dataset"]["repo_id"]
+    private = config["dataset"]["private"]
+
+    if push_to_hub:
+        dataset.push_to_hub(repo_id, private=private, data_dir=data_version, commit_message=commit_message)
+        logger.info(f"https://huggingface.co/datasets/{repo_id}")
 
 
 if __name__ == "__main__":
