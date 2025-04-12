@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Union
+from pprint import pprint
+from typing import Any, Dict, List, Union
 
 import evaluate
 import torch
-from datasets import Dataset, load_dataset, load_from_disk
+from datasets import (
+    Dataset,
+    load_dataset,
+    load_from_disk,  # noqa: F401
+)
 from transformers import (
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
@@ -18,6 +22,10 @@ from transformers import (
     WhisperTokenizer,
 )
 from transformers.trainer_utils import get_last_checkpoint
+
+torch.cuda.empty_cache()
+torch.cuda.ipc_collect()
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,20 +40,22 @@ def load_config(config_path: Union[str, Path]) -> Dict:
         return json.load(f)
 
 
-def prepare_dataset(dataset: Dataset, processor: WhisperProcessor) -> Dataset:
+def prepare_dataset(dataset_config: dict, processor: WhisperProcessor) -> Dataset:
     def prepare_features(batch):
         audio = batch["audio"]
         batch["input_features"] = processor.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
         batch["labels"] = processor.tokenizer(batch["text"]).input_ids
         return batch
 
-    processed_dataset = dataset.map(prepare_features, remove_columns=["audio"])
+    dataset = load_dataset(dataset_config["raw_parquet_cache_dir"], cache_dir=dataset_config["raw_arrow_cache_dir"])
+    processed_dataset = dataset["train"].map(prepare_features, num_proc=dataset_config["num_proc"], remove_columns=["audio"])
+
     return processed_dataset
 
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
-    processor: WhisperProcessor
+    processor: Any
     decoder_start_token_id: int
 
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
@@ -65,39 +75,41 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         return batch
 
 
-def train(config_path, dataset_dir: Path):
+def train(config_path):
     config = load_config(config_path)
-    output_dir = config["output_dir"]
-    os.makedirs(output_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
+    # ------------------------------------------------------------------ #
+    # --------------------------- Model  ------------------------------- #
+    # ------------------------------------------------------------------ #
+    model_config = config["model"]
 
-    model_name_or_path = config.get("model_name", "openai/whisper-large-v3")
-    language = config.get("language", "zh")
-    task = config.get("task", "transcribe")
-    logger.info(f"Loading model: {model_name_or_path}")
+    model_dir = model_config["model_dir"]
+    language = model_config["language"]
+    task = model_config["task"]
 
-    feature_extractor = WhisperFeatureExtractor.from_pretrained(model_name_or_path)
-    tokenizer = WhisperTokenizer.from_pretrained(model_name_or_path, language=language, task=task)
+    logger.info(f"Loading model: {model_dir}")
+    feature_extractor = WhisperFeatureExtractor.from_pretrained(model_dir)
+    tokenizer = WhisperTokenizer.from_pretrained(model_dir, language=language, task=task)
     processor = WhisperProcessor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
-    model = WhisperForConditionalGeneration.from_pretrained(model_name_or_path)
+    model = WhisperForConditionalGeneration.from_pretrained(model_dir)
     model.generation_config.language = language
     model.generation_config.task = task
     model.generation_config.forced_decoder_ids = None
+
+    if config["training"].get("gradient_checkpointing", False):
+        model.config.use_cache = False
 
     # ------------------------------------------------------------------ #
     # --------------------------- Dataset ------------------------------ #
     # ------------------------------------------------------------------ #
     dataset_config = config["dataset"]
+    # dataset = prepare_dataset(dataset_config, processor)
+    # dataset.save_to_disk(dataset_config["map_cache_dir"], num_proc=8)
+    dataset = load_from_disk(dataset_config["map_cache_dir"])
 
-    if dataset_dir.exists():
-        base_dataset = load_from_disk(dataset_dir)
-    else:
-        base_dataset = load_dataset(dataset_config["repo_id"])
-
-    dataset = prepare_dataset(base_dataset, processor)
     train_test_split = dataset.train_test_split(test_size=dataset_config["test_size"])
     train_dataset = train_test_split["train"]
     eval_dataset = train_test_split["test"]
@@ -109,10 +121,12 @@ def train(config_path, dataset_dir: Path):
         processor=processor,
         decoder_start_token_id=model.config.decoder_start_token_id,
     )
+
+    logger.info("Dataset preparation completed")
     # ------------------------------------------------------------------ #
-    # --------------------------- Evaluate ----------------------------- #
+    # --------------------------- Mertics ------------------------------ #
     # ------------------------------------------------------------------ #
-    metric = evaluate.load("wer")
+    metric = evaluate.load("src/metrics/wer")
 
     def compute_metrics(pred):
         pred_ids = pred.predictions
@@ -130,18 +144,25 @@ def train(config_path, dataset_dir: Path):
     # ------------------------------------------------------------------ #
     # --------------------------- Training ----------------------------- #
     # ------------------------------------------------------------------ #
+    training_config = config["training"]
+    pprint(training_config)
+
+    output_dir = Path(training_config["output_dir"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     if not torch.cuda.is_available():
-        config["training"]["fp16"] = False
+        training_config["fp16"] = False
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir=output_dir,
         report_to=["tensorboard"],
-        **config.get("training"),
+        disable_tqdm=True,
+        logging_steps=100,
+        **training_config,
     )
 
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir):
-        last_checkpoint = get_last_checkpoint(training_args.output_dir)
+    if output_dir.exists():
+        last_checkpoint = get_last_checkpoint(output_dir)
         if last_checkpoint is not None:
             logger.info(f"Found checkpoint: {last_checkpoint}, will resume training from here")
 
@@ -164,9 +185,8 @@ def train(config_path, dataset_dir: Path):
 
 
 def main():
-    dataset_dir = "data/dataset"
-    config_path = "configs/whisper_config.json"
-    train(config_path=config_path, dataset_dir=dataset_dir)
+    config_path = "configs/whisper-small_config.json"
+    train(config_path)
 
 
 if __name__ == "__main__":
