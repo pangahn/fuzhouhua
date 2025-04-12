@@ -1,5 +1,6 @@
 {
     "engine": "paddleocr",
+    "font_path": "models/ocr/fonts/simfang.ttf",
     "paddleocr": {
         "use_onnx": true,
         "onnxmodel": {

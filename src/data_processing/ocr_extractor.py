@@ -108,7 +108,6 @@ class SubtitleExtractor:
         self,
         ocr_config_path: str,
         subtitle_config_path: str,
-        font_path: str = "models/ocr/fonts/simfang.ttf",
         debug: bool = False,
         debug_dir: Optional[str] = "test/debug",
     ):
@@ -116,11 +115,12 @@ class SubtitleExtractor:
             self.ocr_config = json.load(f)
 
         self.subtitle_config_path = subtitle_config_path
-        self.font_path = font_path
         self.debug = debug
         self.debug_dir = Path(debug_dir)
 
         self.ocr_engine_type = self.ocr_config["engine"]
+        self.font_path = self.ocr_config["font_path"]
+
         if self.ocr_engine_type == "paddleocr":
             engine_config = self.ocr_config.get("paddleocr")
             self.paddle_ocr = PPOCR(engine_config)
