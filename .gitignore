@@ -21,7 +21,9 @@ metadata.jsonl
 *.srt
 json/
 dataset/
+.env
 
 # logs
 .gradio/
 runs/
+scripts/hfd.sh

@@ -22,6 +22,7 @@ This project builds a robust ASR (Automatic Speech Recognition) system for the F
 ### Model Development
 - [x] Fine-tune Whisper architecture for Fuzhou dialect recognition
 - [ ] Release models in various sizes for different application requirements
+  - [x] Release [i18nJack/fuzhou-whisper-large-v3](https://huggingface.co/i18nJack/fuzhou-whisper-large-v3)
 - [ ] Optimize for latency and resource-constrained environments
 
 ### Deployment
@@ -41,6 +42,32 @@ cd fuzhouhua
 # Install dependencies
 uv sync
 ```
+
+## 📥 Download Pretrained Models
+
+To download the pretrained Whisper model and dataset required for Fuzhou dialect speech recognition:
+
+```bash
+cd fuzhouhua
+wget -P scripts https://hf-mirror.com/hfd/hfd.sh
+chmod a+x scripts/hfd.sh
+
+export HF_ENDPOINT=https://hf-mirror.com
+
+# Download Whisper Large V3 model
+scripts/hfd.sh openai/whisper-large-v3 \
+    --tool wget \
+    --local-dir /your/path/to/fuzhouhua/models/openai/whisper-large-v3
+
+# Download the Fuzhouhua dataset
+scripts/hfd.sh i18nJack/fuzhouhua --dataset \
+    --tool wget \
+    --hf_username i18nJack \
+    --hf_token hf_your_hf_token \
+    --local-dir /your/path/to/fuzhouhua/data/datasets
+```
+
+> Replace `/your/path/to/` with your actual local directory paths, and ensure `hf_your_hf_token` is a valid Hugging Face token with dataset access permissions.
 
 ### Configuration
 

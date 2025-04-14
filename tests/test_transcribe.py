@@ -19,12 +19,6 @@ def load_config(config_path: Union[str, Path]) -> Dict:
         return json.load(f)
 
 
-def load_model_and_processor(model_path):
-    model = WhisperForConditionalGeneration.from_pretrained(model_path)
-    processor = WhisperProcessor.from_pretrained(model_path)
-    return model, processor
-
-
 def preprocess_audio(audio_data, target_sample_rate=16000):
     waveform = torch.tensor(audio_data["array"]).unsqueeze(0)  # (1, samples)
     sampling_rate = audio_data["sampling_rate"]
@@ -50,8 +44,10 @@ def transcribe_audio(example, model, processor):
     return example
 
 
-def evaluate_model(dataset, model_path, num_samples=5):
-    model, processor = load_model_and_processor(model_path)
+def evaluate_model(dataset, ckpt_path, pretrained_model_path, num_samples=5):
+    model = WhisperForConditionalGeneration.from_pretrained(ckpt_path)
+    processor = WhisperProcessor.from_pretrained(pretrained_model_path)
+
     results = dataset["train"].select(range(num_samples)).map(lambda example: transcribe_audio(example, model, processor))
 
     table_data = []
@@ -65,14 +61,19 @@ def evaluate_model(dataset, model_path, num_samples=5):
 
 
 def main():
-    config_path = "configs/whisper-small_config.json"
+    config_path = "configs/whisper-large-v3_config.json"
     config = load_config(config_path)
+    pretrained_model_path = config["model"]["model_dir"]
 
     dataset_config = config["dataset"]
     dataset = load_dataset(dataset_config["raw_parquet_cache_dir"], cache_dir=dataset_config["raw_arrow_cache_dir"])
 
-    model_path = config["training"]["output_dir"]
-    evaluate_model(dataset, model_path, 5)
+    output_dir = Path(config["training"]["output_dir"])
+    checkpoint_id = "checkpoint-10000"
+    ckpt_path = output_dir / checkpoint_id
+    print(f"Using checkpoint from: {ckpt_path}")
+
+    evaluate_model(dataset, ckpt_path, pretrained_model_path, num_samples=5)
 
 
 if __name__ == "__main__":

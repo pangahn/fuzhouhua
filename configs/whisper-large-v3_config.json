@@ -1,13 +1,13 @@
 {
     "model": {
-        "model_dir": "/your/path/to/fuzhouhua/models/openai/whisper-small",
+        "model_dir": "/your/path/to/fuzhouhua/models/openai/whisper-large-v3",
         "language": "zh",
         "task": "transcribe"
     },
     "dataset": {
         "raw_parquet_cache_dir": "/your/path/to/fuzhouhua/data/datasets",
         "raw_arrow_cache_dir": "/your/path/to/fuzhouhua/data/cache",
-        "map_cache_dir": "/your/path/to/fuzhouhua/data/whisper-small_mapcache",
+        "map_cache_dir": "/your/path/to/fuzhouhua/data/whisper-large-v3_mapcache",
         "num_proc": 8,
         "push_to_hub": true,
         "private": false,
@@ -15,21 +15,21 @@
         "sampling_rate": 16000
     },
     "training": {
-        "output_dir": "/your/path/to/fuzhouhua/outputs/whisper-small",
+        "output_dir": "/your/path/to/fuzhouhua/outputs/whisper-large-v3",
         "fp16": true,
         "num_train_epochs": 15,
-        "per_device_train_batch_size": 32,
+        "per_device_train_batch_size": 16,
         "gradient_accumulation_steps": 1,
         "gradient_checkpointing": false,
         "learning_rate": 1e-5,
         "warmup_steps": 1000,
         "eval_strategy": "steps",
         "eval_steps": 1000,
-        "per_device_eval_batch_size": 16,
+        "per_device_eval_batch_size": 8,
         "eval_accumulation_steps": 1,
         "save_strategy": "steps",
         "save_steps": 1000,
-        "save_total_limit": 10,
+        "save_total_limit": 30,
         "predict_with_generate": true,
         "load_best_model_at_end": true,
         "metric_for_best_model": "cer",
